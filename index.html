@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Dossier: Jovin Kurichial - Sr.Data Engineer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Slate and Indigo) -->
+    <!-- Application Structure Plan: A single-page dashboard or "Interactive Dossier" is used to transform the dense report into a non-linear, explorable experience. The structure prioritizes user tasks (e.g., assessing skills, understanding processes, reviewing case studies) over the report's original chapter flow. The core components are: 1) A persistent top navigation for high-level themes (Skills, Lifecycle, Challenges). 2) A dynamic main content area where sections are shown/hidden via JS, preventing scrolling fatigue. 3) An interactive "Data Lifecycle" diagram, which acts as the central navigation hub for understanding the engineer's end-to-end process knowledge. 4) An accordion for "Challenges" to present case studies concisely. 5) A "Core Skills" section with a chart for quick visual assessment. This design was chosen to make the engineer's qualifications immediately accessible and engaging for a technical hiring manager, allowing them to dive into areas of interest without reading linearly. -->
+    <!-- Visualization & Content Choices: 
+        - [Report Info: Skills list] -> [Goal: Compare/Inform] -> [Viz: Horizontal Bar Chart] -> [Interaction: Static visual summary] -> [Justification: Provides a quick, quantitative overview of expertise areas.] -> [Library: Chart.js]
+        - [Report Info: ETL, Quality, Cleaning, Optimization sections] -> [Goal: Organize/Process] -> [Viz: HTML/CSS Flexbox Diagram] -> [Interaction: Clickable stages update a content panel] -> [Justification: Synthesizes disparate report sections into a cohesive, user-friendly data journey, which is more intuitive than a tool-by-tool breakdown.] -> [Library: Vanilla JS]
+        - [Report Info: Challenges & Mitigations section] -> [Goal: Inform/Organize] -> [Viz: HTML Accordion] -> [Interaction: Click to expand/collapse] -> [Justification: Presents detailed case studies in a compact, manageable format, preventing overwhelming walls of text.] -> [Library: Vanilla JS]
+        - [Report Info: Spark Job Flow] -> [Goal: Inform/Process] -> [Viz: HTML/CSS Flexbox Diagram] -> [Interaction: Hover for tooltips] -> [Justification: Simplifies a complex technical process into an easy-to-understand visual, with details on demand.] -> [Library: Vanilla JS]
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4f46e5;
+            transition: width 0.3s ease;
+        }
+        .nav-link.active, .nav-link:hover {
+            color: #4f46e5;
+        }
+        .nav-link.active::after, .nav-link:hover::after {
+            width: 100%;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        .lifecycle-step {
+            transition: all 0.3s ease-in-out;
+            cursor: pointer;
+        }
+        .lifecycle-step.active, .lifecycle-step:hover {
+            transform: translateY(-4px);
+            background-color: #4f46e5;
+            color: white;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 220px;
+            background-color: #1f2937;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -110px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 300px;
+            width: 100%;
+            max-width: 700px;
+        }
+         @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900 mb-2">Senior Data Engineer</h1>
+            <p class="text-lg text-slate-600">An Interactive Dossier of Skills & Experience</p>
+        </header>
+
+        <nav class="flex justify-center items-center border-b border-slate-200 mb-12">
+            <ul class="flex space-x-6 md:space-x-10">
+                <li><a href="#intro" data-target="intro" class="nav-link active text-lg font-medium pb-2">Introduction</a></li>
+                <li><a href="#skills" data-target="skills" class="nav-link text-lg font-medium pb-2">Core Skills</a></li>
+                <li><a href="#lifecycle" data-target="lifecycle" class="nav-link text-lg font-medium pb-2">Data Lifecycle</a></li>
+                <li><a href="#challenges" data-target="challenges" class="nav-link text-lg font-medium pb-2">Case Studies</a></li>
+            </ul>
+        </nav>
+
+        <main id="main-content">
+            <section id="intro" class="content-section active">
+                <div class="bg-white p-8 rounded-xl shadow-sm max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold text-slate-900 mb-4 text-center">About Me</h2>
+                    <p id="intro-text" class="text-slate-700 text-lg leading-relaxed text-center"></p>
+                    <div class="mt-8 pt-6 border-t border-slate-200">
+                        <h3 class="text-xl font-semibold text-center text-slate-800 mb-4">Key Technologies</h3>
+                        <div id="tech-tags" class="flex flex-wrap justify-center gap-3"></div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="skills" class="content-section">
+                 <div class="bg-white p-8 rounded-xl shadow-sm max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold text-slate-900 mb-6 text-center">Core Skill Distribution</h2>
+                    <p class="text-center text-slate-600 mb-8 max-w-2xl mx-auto">This chart provides a visual summary of proficiency across key technology domains, based on the breadth of tools and platforms utilized in past projects. It reflects a deep and balanced expertise in the modern data stack.</p>
+                    <div class="chart-container">
+                        <canvas id="skillsChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="lifecycle" class="content-section">
+                <div class="bg-white p-8 rounded-xl shadow-sm">
+                    <h2 class="text-3xl font-bold text-slate-900 mb-4 text-center">End-to-End Data Lifecycle Management</h2>
+                    <p class="text-center text-slate-600 mb-10 max-w-3xl mx-auto">This section illustrates my hands-on experience across the entire data lifecycle. Each stage represents a critical phase in transforming raw data into valuable, reliable assets. Click on a step to explore the specific strategies, tools, and techniques I employ to ensure excellence at every point in the process.</p>
+                    <div id="lifecycle-diagram" class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4 mb-8">
+                    </div>
+                    <div id="lifecycle-content" class="mt-8 p-6 bg-slate-50 rounded-lg min-h-[300px] transition-all duration-300">
+                        <h3 id="lifecycle-title" class="text-2xl font-bold text-indigo-600 mb-4"></h3>
+                        <div id="lifecycle-body" class="text-slate-700 leading-relaxed space-y-4"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="challenges" class="content-section">
+                <div class="bg-white p-8 rounded-xl shadow-sm max-w-4xl mx-auto">
+                    <h2 class="text-3xl font-bold text-slate-900 mb-4 text-center">Problem Solving: Real-World Case Studies</h2>
+                    <p class="text-center text-slate-600 mb-8 max-w-3xl mx-auto">Data engineering is fundamentally about solving complex problems. This section details key challenges encountered in recent projects, outlining the situation, the mitigation strategies developed, and the practical solutions implemented using the Azure data stack. Click on each challenge to see how it was resolved.</p>
+                    <div id="accordion" class="space-y-4"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const appData = {
+        intro: {
+            text: "I am a Data Engineer with 6 years of experience specializing in building scalable and robust data platforms. My expertise spans traditional relational databases like MSSQL, MySQL, PostgreSQL, and Oracle, as well as modern cloud environments, particularly Azure, where I have extensive experience with Azure Data Factory, Databricks, and various Storage solutions. I am passionate about transforming raw data into actionable insights, with a focus on data quality, pipeline optimization, and implementing automation through DevOps practices. In a recent role, I led initiatives to migrate on-premises data to a cloud-native data lakehouse, significantly improving data processing efficiency and reliability.",
+            tags: [ "Azure Cloud", "Databases", "ETL Tools", "Python", "SQL", "DevOps", "Power BI", "Data Migration", "Agile", "GenAI" ]
+        },
+        skills: {
+            labels: ["Databases (SQL/NoSQL)", "Cloud Platform (Azure)", "ETL & Data Integration", "Scripting & Programming", "DevOps & Automation", "BI & Visualization"],
+            data: [4, 12, 4, 4, 6, 1]
+        },
+        lifecycle: [
+            {
+                id: 'ingestion',
+                title: 'Ingestion & Extraction',
+                content: `
+                    <p>The first step is to reliably extract data from diverse sources. I leverage a variety of tools and libraries to connect to different systems and bring data into the central platform.</p>
+                    <ul>
+                        <li class="mb-2"><strong>Databases:</strong> Using Python libraries like <strong>pyodbc</strong> (MSSQL), <strong>psycopg2</strong> (PostgreSQL), <strong>mysql-connector-python</strong>, and <strong>cx_Oracle</strong> to script connections and extractions. For high-volume loads, I utilize features like <code>cursor.fast_executemany</code> in pyodbc for significant performance gains.</li>
+                        <li class="mb-2"><strong>Cloud Storage:</strong> Utilizing the Azure SDK, specifically <strong>azure-storage-blob</strong>, to interact with Azure Blob Storage, which serves as a primary landing zone for raw structured and unstructured data. All interactions are secured using passwordless authentication methods like <code>DefaultAzureCredential</code>.</li>
+                        <li class="mb-2"><strong>ETL Tools:</strong> Employing <strong>Azure Data Factory (ADF)</strong>, <strong>SSIS</strong>, and <strong>ODI</strong> to build robust extraction pipelines, capable of handling both full and incremental loads from on-premise and cloud sources like SAP S4 HANA.</li>
+                    </ul>
+                `
+            },
+            {
+                id: 'quality',
+                title: 'Data Quality & Cleansing',
+                content: `
+                    <p>Ensuring data is accurate, complete, and consistent is non-negotiable. I implement a multi-layered data quality strategy throughout the pipeline, addressing issues proactively.</p>
+                    <ul>
+                        <li class="mb-2"><strong>Framework:</strong> I assess data against key dimensions: <strong>Accuracy, Completeness, Consistency, Uniqueness, Timeliness, and Validity.</strong></li>
+                        <li class="mb-2"><strong>At Scale (Databricks):</strong> Using PySpark to handle deduplication (<code>dropDuplicates()</code>, <code>MERGE</code>), manage missing values (<code>fillna()</code>), detect outliers (using IQR or Standard Deviation methods), and enforce schema on Delta tables.</li>
+                        <li class="mb-2"><strong>In ETL Tools (ADF/SSIS):</strong> In ADF, I use <strong>Assert transformations</strong> and reusable <strong>User-Defined Functions (UDFs)</strong> to validate data within mapping data flows. In SSIS, I leverage transformations like <strong>Fuzzy Lookup</strong> and <strong>Fuzzy Grouping</strong> for advanced cleansing and deduplication, along with integration with <strong>SQL Server Data Quality Services (DQS)</strong>.</li>
+                        <li class="mb-2"><strong>In Database (SQL):</strong> Enforcing data integrity at the source with constraints like <code>NOT NULL</code>, <code>UNIQUE</code>, and <code>CHECK</code>. I also write TSQL scripts using window functions like <code>ROW_NUMBER()</code> to identify and remove duplicates.</li>
+                    </ul>
+                `
+            },
+            {
+                id: 'transformation',
+                title: 'Transformation (ETL/ELT)',
+                content: `
+                    <p>Once data is ingested and cleansed, it's transformed into a usable format for analytics. My primary tool for large-scale transformation is Azure Databricks with Apache Spark.</p>
+                    <p>A typical Spark ETL/ELT pipeline involves:</p>
+                    <ol class="list-decimal list-inside mt-4 space-y-2">
+                        <li><strong>Extract:</strong> Reading raw data (e.g., JSON, CSV) from a data lake (ADLS Gen2) into a Spark DataFrame.</li>
+                        <li><strong>Transform:</strong> Performing a series of operations like flattening nested structures, enriching data by joining with other datasets, applying business logic, and aggregating data to create meaningful metrics.</li>
+                        <li><strong>Load:</strong> Writing the final, curated dataset into a serving layer, typically a <strong>Delta Lake table</strong>, which provides ACID transactions, time travel, and performance optimizations for the data lake.</li>
+                    </ol>
+                    <div class="mt-6 p-4 bg-slate-100 rounded-lg">
+                        <h4 class="font-semibold text-slate-800 mb-2">Spark Job Execution Flow</h4>
+                        <div class="flex flex-wrap gap-2 items-center justify-center text-sm">
+                            <div class="tooltip bg-indigo-100 text-indigo-800 p-2 rounded-md">Driver Program<span class="tooltiptext">Coordinates the job, builds DAG.</span></div>
+                            <div class="text-slate-500 font-bold text-xl">&rarr;</div>
+                            <div class="tooltip bg-indigo-100 text-indigo-800 p-2 rounded-md">DAG<span class="tooltiptext">Logical plan of transformations. Enables optimization and fault tolerance.</span></div>
+                            <div class="text-slate-500 font-bold text-xl">&rarr;</div>
+                            <div class="tooltip bg-indigo-100 text-indigo-800 p-2 rounded-md">Stages<span class="tooltiptext">Groups of tasks without data shuffling.</span></div>
+                            <div class="text-slate-500 font-bold text-xl">&rarr;</div>
+                            <div class="tooltip bg-indigo-100 text-indigo-800 p-2 rounded-md">Tasks<span class="tooltiptext">Smallest execution unit, runs on an executor.</span></div>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                id: 'optimization',
+                title: 'Optimization & Performance',
+                content: `
+                    <p>A functional pipeline is not enough; it must also be efficient and cost-effective. I continuously monitor and tune performance at every layer of the data stack.</p>
+                    <ul>
+                        <li class="mb-2"><strong>Databricks/Spark:</strong>
+                            <ul class="list-disc list-inside ml-4">
+                                <li>Compacting small files using <code>OPTIMIZE</code> and co-locating data with <code>ZORDER</code> on Delta tables.</li>
+                                <li>Tuning shuffle operations and addressing data skew using techniques like salting or leveraging Spark 3's Adaptive Query Execution (AQE).</li>
+                                <li>Selecting appropriate cluster types (e.g., Job vs. All-Purpose, Auto-Scaling) and leveraging spot instances to optimize cost.</li>
+                                <li>Using the Photon engine for accelerated query performance.</li>
+                            </ul>
+                        </li>
+                        <li class="mb-2"><strong>Azure Data Factory:</strong> Tuning Data Integration Units (DIUs) and configuring parallel copy settings. For data warehouses, I use staged copy with PolyBase/COPY for maximum throughput.</li>
+                        <li class="mb-2"><strong>SQL/TSQL:</strong> Comprehensive query tuning through index optimization, analyzing execution plans to eliminate bottlenecks like table scans, and using table partitioning for large datasets.</li>
+                    </ul>
+                `
+            },
+            {
+                id: 'governance',
+                title: 'Governance & Automation',
+                content: `
+                    <p>Robust governance and automation are the foundation of a mature data platform. I use Infrastructure as Code and CI/CD to ensure reliability, security, and repeatability.</p>
+                    <ul>
+                        <li class="mb-2"><strong>Automation & CI/CD:</strong> Using <strong>Azure DevOps</strong> to create CI/CD pipelines for automated testing and deployment of both ADF (JSON) and Databricks (notebooks) code. All code is version-controlled in Git.</li>
+                        <li class="mb-2"><strong>Infrastructure as Code (IaC):</strong> Defining all Azure data resources (Storage, ADF, Databricks, SQL DB) in <strong>Azure Resource Manager (ARM) templates</strong>. This allows for rapid, consistent, and error-free environment provisioning.</li>
+                        <li class="mb-2"><strong>Security & Access Control:</strong> Centrally managing access with <strong>Azure Active Directory (AAD)</strong> and applying the principle of least privilege using granular <strong>Role-Based Access Control (RBAC)</strong>.</li>
+                        <li class="mb-2"><strong>Secrets Management:</strong> Storing all secrets, connection strings, and API keys securely in <strong>Azure Key Vault</strong>, which is integrated with ADF and Databricks to retrieve credentials at runtime, eliminating hardcoded secrets from code.</li>
+                        <li class="mb-2"><strong>Policy Enforcement:</strong> Using <strong>Azure Policy</strong> to enforce organizational standards, such as mandating encryption or restricting resource deployment to specific regions, ensuring continuous compliance.</li>
+                    </ul>
+                `
+            }
+        ],
+        challenges: [
+            {
+                title: 'Data Volume & Velocity',
+                challenge: 'Processing petabytes of historical data and ingesting high-velocity streaming IoT data. Traditional batch processing was too slow and costly.',
+                solution: 'Migrated data to scalable <strong>Azure Data Lake Storage Gen2</strong>. Implemented <strong>Azure Databricks with Apache Spark</strong> for distributed batch processing. Adopted <strong>Spark Structured Streaming</strong> for near real-time ingestion and processing of streaming data, providing timely insights.'
+            },
+            {
+                title: 'Schema Drift',
+                challenge: 'Upstream source systems and APIs frequently changed schema (adding/removing/renaming columns) without warning, causing pipelines to fail.',
+                solution: 'Leveraged the native <strong>schema drift handling</strong> features in both <strong>ADF Mapping Data Flows</strong> and <strong>Databricks/Delta Lake</strong>. Delta Lake\'s schema evolution capabilities allowed new columns to be added gracefully without breaking the pipeline, while robust logging and alerting were configured to notify the team of significant changes for review.'
+            },
+            {
+                title: 'The "Small File" Problem',
+                challenge: 'Data ingestion processes created millions of small files in the data lake, severely degrading read performance in Spark due to metadata overhead.',
+                solution: 'Implemented an automated nightly job in Databricks that runs the <code>OPTIMIZE</code> command on Delta tables. This process compacts the small files into larger, optimally-sized Parquet files (128MB-1GB). The <code>ZORDER</code> command was also used to co-locate related information, dramatically improving query performance for downstream jobs and Power BI reports.'
+            },
+            {
+                title: 'Inefficient Full Loads',
+                challenge: 'Daily full reloads of massive tables (500M+ rows) were time-consuming and expensive, even when only a small fraction of the data had changed.',
+                solution: 'Re-architected the pipeline to perform <strong>incremental loads</strong>. Implemented a watermarking strategy in ADF, storing the last-processed timestamp and filtering the source on subsequent runs. For dimension tables, I used ADF\'s built-in support for <strong>Slowly Changing Dimensions (SCD Type 2)</strong> to preserve historical changes efficiently without reloading the entire table.'
+            },
+            {
+                title: 'Data Security & Governance',
+                challenge: 'Needed to protect sensitive data, control access granularly, and ensure compliance with regulations like GDPR across the entire platform.',
+                solution: 'Established a "security by design" architecture. Used <strong>Azure Active Directory</strong> for identity, <strong>RBAC</strong> for granular access, and <strong>Azure Key Vault</strong> for all secrets. Enforced infrastructure standards and compliance checks (e.g., encryption at rest) using <strong>Azure Policy</strong>. This embedded governance directly into the deployment process.'
+            }
+        ]
+    };
+
+    // --- Navigation ---
+    const navLinks = document.querySelectorAll('.nav-link');
+    const contentSections = document.querySelectorAll('.content-section');
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('data-target');
+
+            navLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+
+            contentSections.forEach(section => {
+                section.classList.remove('active');
+                if (section.id === targetId) {
+                    section.classList.add('active');
+                }
+            });
+            window.location.hash = targetId;
+        });
+    });
+    
+    // --- Initial content population ---
+    function populateIntro() {
+        document.getElementById('intro-text').textContent = appData.intro.text;
+        const tagsContainer = document.getElementById('tech-tags');
+        tagsContainer.innerHTML = appData.intro.tags.map(tag => 
+            `<span class="bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">${tag}</span>`
+        ).join('');
+    }
+
+    // --- Skills Chart ---
+    function createSkillsChart() {
+        const ctx = document.getElementById('skillsChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: appData.skills.labels,
+                datasets: [{
+                    label: 'Number of Key Technologies/Tools Used',
+                    data: appData.skills.data,
+                    backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                    borderColor: 'rgba(79, 70, 229, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { display: true, color: 'rgba(203, 213, 225, 0.5)' }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: '#1f2937',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 4
+                    }
+                }
+            }
+        });
+    }
+
+    // --- Lifecycle Section ---
+    function setupLifecycle() {
+        const diagramContainer = document.getElementById('lifecycle-diagram');
+        const titleEl = document.getElementById('lifecycle-title');
+        const bodyEl = document.getElementById('lifecycle-body');
+
+        diagramContainer.innerHTML = appData.lifecycle.map((step, index) => `
+            <div class="flex items-center w-full md:w-auto">
+                <div id="step-${step.id}" data-index="${index}" class="lifecycle-step bg-white shadow-sm border border-slate-200 rounded-lg p-4 w-full text-center">
+                    <span class="font-semibold">${step.title}</span>
+                </div>
+                ${index < appData.lifecycle.length - 1 ? '<div class="hidden md:block text-slate-400 font-bold text-2xl mx-4">&rarr;</div>' : ''}
+            </div>
+        `).join('');
+
+        const steps = diagramContainer.querySelectorAll('.lifecycle-step');
+
+        function updateContent(index) {
+            const stepData = appData.lifecycle[index];
+            titleEl.textContent = stepData.title;
+            bodyEl.innerHTML = stepData.content;
+
+            steps.forEach(s => s.classList.remove('active'));
+            document.getElementById(`step-${stepData.id}`).classList.add('active');
+        }
+
+        steps.forEach(step => {
+            step.addEventListener('click', () => {
+                updateContent(step.dataset.index);
+            });
+        });
+
+        updateContent(0); // Initial state
+    }
+
+    // --- Accordion for Challenges ---
+    function createAccordion() {
+        const accordionContainer = document.getElementById('accordion');
+        accordionContainer.innerHTML = appData.challenges.map((item, index) => `
+            <div class="border border-slate-200 rounded-lg">
+                <button class="accordion-header w-full flex justify-between items-center p-5 text-left font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 transition-colors duration-300" data-index="${index}">
+                    <span>${item.title}</span>
+                    <span class="transform transition-transform duration-300 text-indigo-600 text-2xl font-light">+</span>
+                </button>
+                <div class="accordion-content">
+                    <div class="p-5 border-t border-slate-200 bg-white">
+                        <p class="mb-3"><strong>Challenge:</strong> ${item.challenge}</p>
+                        <p><strong>Solution:</strong> ${item.solution}</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        const headers = accordionContainer.querySelectorAll('.accordion-header');
+        headers.forEach(header => {
+            header.addEventListener('click', () => {
+                const content = header.nextElementSibling;
+                const isOpen = content.style.maxHeight;
+
+                // Close all other accordions
+                headers.forEach(h => {
+                    const c = h.nextElementSibling;
+                    if(h !== header) {
+                        c.style.maxHeight = null;
+                        h.querySelector('span:last-child').classList.remove('rotate-45');
+                    }
+                });
+
+                if (isOpen) {
+                    content.style.maxHeight = null;
+                    header.querySelector('span:last-child').classList.remove('rotate-45');
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                    header.querySelector('span:last-child').classList.add('rotate-45');
+                }
+            });
+        });
+    }
+
+    // --- Initial page setup ---
+    populateIntro();
+    createSkillsChart();
+    setupLifecycle();
+    createAccordion();
+    
+    // Handle hash on initial load
+    const initialHash = window.location.hash.replace('#', '');
+    if (initialHash) {
+        const targetLink = document.querySelector(`.nav-link[data-target="${initialHash}"]`);
+        if(targetLink) targetLink.click();
+    }
+});
+</script>
+</body>
+</html>
